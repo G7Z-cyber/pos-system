@@ -2884,9 +2884,99 @@ splitApplyBtn.addEventListener("click", () => {
   closeSplitModal();
 });
 
+async function fetchReceiptsFromSupabase() {
+  await ensureAccessToken({ forceRefresh: false });
+
+  const { data, error } = await window.sb
+    .from("receipts")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map((r) => ({
+    id: String(r.id),
+    ref: r.ref,
+    table: String(r.table_number || ""),
+    customerName: r.customer_name || "",
+    customerPhone: r.customer_phone || "",
+    createdAt: r.created_at,
+    subtotal: Number(r.subtotal || 0),
+    total: Number(r.total || 0),
+    paid: Number(r.paid || 0),
+    change: Number(r.change_amount || 0),
+    balance: Number(r.balance || 0),
+    cogs: Number(r.cogs || 0),
+    profit: Number(r.profit || 0),
+    currency: r.currency || "USD",
+    exchangeRate: Number(r.exchange_rate || 1),
+    vatRate: Number(r.vat_rate || 0),
+    vat: {
+      taxable: Number(r.vat_taxable || 0),
+      amount: Number(r.vat_amount || 0),
+      total: Number(r.total || 0),
+      rate: Number(r.vat_rate || 0),
+      mode: "included"
+    },
+    discount: { amount: Number(r.discount_amount || 0) },
+    reopenedFrom: r.reopened_from || null,
+    reservationId: r.reservation_id || null,
+    lines: [],
+    payments: []
+  }));
+}
+
+async function fetchReceiptDetailsFromSupabase(receiptId) {
+  await ensureAccessToken({ forceRefresh: false });
+
+  const [{ data: lines, error: linesError }, { data: payments, error: paymentsError }] =
+    await Promise.all([
+      window.sb
+        .from("receipt_lines")
+        .select("*")
+        .eq("receipt_id", receiptId)
+        .order("id", { ascending: true }),
+
+      window.sb
+        .from("receipt_payments")
+        .select("*")
+        .eq("receipt_id", receiptId)
+        .order("id", { ascending: true })
+    ]);
+
+  if (linesError) throw linesError;
+  if (paymentsError) throw paymentsError;
+
+  return {
+    lines: (lines || []).map((line) => ({
+      lineId: line.line_id,
+      type: line.line_type,
+      product_id: line.product_id,
+      dishName: line.item_name,
+      customName: line.item_name,
+      qty: Number(line.quantity || 0),
+      unitPrice: Number(line.unit_price || 0),
+      removedIngredients: Array.isArray(line.removed_ingredients) ? line.removed_ingredients : [],
+      note: line.note || ""
+    })),
+    payments: (payments || []).map((p) => ({
+      method: p.method || "cash",
+      currency: p.currency || "USD",
+      inputAmount: Number(p.input_amount || 0),
+      amount: Number(p.amount_usd || 0)
+    }))
+  };
+}
+
 // ---------- Receipts History + Reopen ----------
-function openReceiptsModal() {
-  receipts = safeParse(localStorage.getItem(RECEIPTS_KEY), receipts || []);
+async function openReceiptsModal() {
+  try {
+    receipts = await fetchReceiptsFromSupabase();
+  } catch (err) {
+    console.error("Supabase receipts load failed, using local receipts:", err);
+    receipts = safeParse(localStorage.getItem(RECEIPTS_KEY), receipts || []);
+  }
+
   selectedReceiptId = null;
   receiptSearch.value = "";
   renderReceiptsList(receipts);
@@ -2898,7 +2988,9 @@ function closeReceiptsModal() {
   receiptsModal.classList.add("hidden");
   document.body.style.overflow = "";
 }
-receiptsBtn.addEventListener("click", openReceiptsModal);
+receiptsBtn.addEventListener("click", async () => {
+  await openReceiptsModal();
+});
 receiptsCloseBtn.addEventListener("click", closeReceiptsModal);
 receiptsCancelBtn.addEventListener("click", closeReceiptsModal);
 receiptsModal.addEventListener("click", (e) => { if (e.target === receiptsModal) closeReceiptsModal(); });
@@ -2924,11 +3016,22 @@ function renderReceiptsList(list) {
       <div class="hint">${escapeHtml(dt)} • Table ${escapeHtml(r.table)} • ${formatReceiptCurrency(r.total, r)}${cust ? ` • ${escapeHtml(cust)}` : ""}</div>
     `;
 
-    card.addEventListener("click", () => {
-      selectedReceiptId = r.id;
-      renderReceiptsList(list);
-      renderReceiptDetails(r);
+    card.addEventListener("click", async () => {
+  selectedReceiptId = r.id;
+  renderReceiptsList(list);
+
+  try {
+    const details = await fetchReceiptDetailsFromSupabase(r.id);
+    renderReceiptDetails({
+      ...r,
+      lines: details.lines,
+      payments: details.payments
     });
+  } catch (err) {
+    console.error("Failed to load receipt details from Supabase:", err);
+    renderReceiptDetails(r);
+  }
+});
 
     receiptsListEl.appendChild(card);
   });
@@ -3024,11 +3127,15 @@ function renderReceiptDetails(r) {
 
 receiptSearch.addEventListener("input", () => {
   const k = norm(receiptSearch.value);
-  const list = safeParse(localStorage.getItem(RECEIPTS_KEY), receipts || []);
-  const filtered = list.filter((r) =>
+
+  const filtered = (receipts || []).filter((r) =>
     norm(r.ref).includes(k) ||
+    norm(r.table).includes(k) ||
+    norm(r.customerName).includes(k) ||
+    norm(r.customerPhone).includes(k) ||
     norm(new Date(r.createdAt).toLocaleString()).includes(k)
   );
+
   renderReceiptsList(filtered);
 });
 
