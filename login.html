@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | Restaurant POS</title>
+  <link rel="stylesheet" href="login.css" />
+</head>
+<body data-public-page="true">
+  <main class="auth-shell" aria-label="Restaurant POS login">
+    <section class="auth-card">
+      <div class="brand">
+        <div class="logo-wrap" aria-hidden="true">
+          <img
+            src="assets/logo.png"
+            alt="Restaurant Logo"
+            class="brand-logo"
+            onerror="this.style.display='none'; this.parentElement.classList.add('logo-fallback-active');"
+          />
+          <span class="logo-fallback">POS</span>
+        </div>
+
+        <div class="brand-text">
+          <p class="eyebrow">Secure Cloud Access</p>
+          <h1>Restaurant POS</h1>
+          <p>Authorized staff login</p>
+        </div>
+      </div>
+
+      <div id="authMsg" class="auth-msg hidden" role="alert"></div>
+
+      <form id="loginForm" class="auth-form" autocomplete="on">
+        <label for="loginEmail">Email</label>
+        <input
+          id="loginEmail"
+          name="email"
+          type="email"
+          required
+          autocomplete="email"
+          placeholder="staff@email.com"
+        />
+
+        <label for="loginPassword">Password</label>
+        <div class="password-field">
+          <input
+            id="loginPassword"
+            name="password"
+            type="password"
+            required
+            autocomplete="current-password"
+            placeholder="Enter password"
+          />
+          <button id="togglePasswordBtn" type="button" aria-label="Show password">Show</button>
+        </div>
+
+        <button id="loginSubmitBtn" type="submit" class="primary-btn">Login</button>
+      </form>
+
+      <div class="security-note">
+        <strong>Authorized staff only.</strong>
+        <span>Accounts are created by the restaurant administrator.</span>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js"></script>
+  <script src="auth.js"></script>
+  <script src="login.js"></script>
+</body>
+</html>

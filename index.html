@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Restaurant POS System</title>
+  <link rel="stylesheet" href="index.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js"></script>
+  <script src="auth.js"></script>
+</head>
+
+<body>
+  <!-- ===== HEADER ===== -->
+  <header class="app-shell-header">
+  <div class="app-shell-header__top">
+    <div class="app-shell-header__brand">
+      <img src="assets/logo.png" alt="Restaurant Logo" class="app-shell-header__logo" />
+      <div class="app-shell-header__identity">
+        <span class="app-shell-header__eyebrow">Live Service</span>
+        <h1>Restaurant POS</h1>
+        <p>Take orders, manage tables, collect payments, and send items to kitchen</p>
+      </div>
+    </div>
+
+    <div class="app-shell-header__actions">
+      <button id="dashboardBtn" class="app-shell-btn app-shell-btn--secondary">Dashboard</button>
+      <button id="stockBtn" class="app-shell-btn app-shell-btn--secondary">Stock</button>
+      <button id="customersBtn" class="app-shell-btn app-shell-btn--secondary">Customers</button>
+      <button id="reservationsBtn" class="app-shell-btn app-shell-btn--secondary">Reservations</button>
+      <button id="receiptsBtn" class="app-shell-btn app-shell-btn--secondary">Receipts</button>
+      <button id="logoutBtn" class="app-shell-btn app-shell-btn--danger">Logout</button>
+    </div>
+  </div>
+
+  <div class="app-shell-header__bottom">
+    <div class="app-shell-header__meta">
+      <div class="app-shell-chip app-shell-chip--info">Mode: <strong>Service</strong></div>
+      <div class="app-shell-chip">Currency: <strong id="headerCurrencyMode">USD</strong></div>
+      <div class="app-shell-chip">VAT: <strong id="headerVatRate">11%</strong></div>
+      <div class="app-shell-chip app-shell-chip--ok">Status: <strong>Ready</strong></div>
+    </div>
+  </div>
+</header>
+
+  <!-- ==== ALERT MESSAGE ==== -->
+  <div id="appMessage" class="hidden"></div>
+
+  <button id="settingsBtn" class="floating-settings-btn" type="button" aria-label="Open POS settings">
+    <span class="settings-icon">⚙</span>
+    <span class="settings-text">Settings</span>
+  </button>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="main-content">
+    <!-- === TABLES PANEL === -->
+    <section class="tables">
+      <h2>Tables</h2>
+      <div id="tableList" class="table-list"></div>
+      <button id="addTableBtn" class="add-btn">+ Add Table</button>
+    </section>
+
+    <!-- === MENU PANEL === -->
+    <section class="menu pos-menu-panel">
+      <div class="panel-title-row">
+        <div>
+          <h2>Menu</h2>
+          <p class="hint">Choose a category, search, then tap an item to add it.</p>
+        </div>
+      </div>
+
+      <div id="categoryList" class="category-list category-tabs"></div>
+
+      <div class="menu-tools">
+        <input type="search" id="menuSearch" placeholder="Search menu item..." autocomplete="off" />
+      </div>
+
+      <div id="menuItems" class="menu-items"></div>
+    </section>
+
+    <!-- === ORDER PANEL === -->
+    <section class="order hidden" id="orderPanel">
+      <h2 id="orderTitle">Current Order</h2>
+      <p id="tableInfo" class="table-info"></p>
+
+      <!-- ✅ ADDED: Reservation banner -->
+      <div id="reservationBanner" class="reopen-banner hidden"></div>
+
+      <div id="reopenBanner" class="reopen-banner hidden"></div>
+
+      <ul id="orderList"></ul>
+
+      <div class="order-actions">
+
+        <!-- ✅ ADDED: Customer section (walk-ins + reservations) -->
+        <label>Customer (optional, for loyalty):</label>
+        <div class="custom-add">
+          <input type="text" id="posCustomerName" placeholder="Customer full name" />
+          <input type="text" id="posCustomerPhone" placeholder="Phone (e.g. +96170123456)" list="posCustomersPhones" />
+        </div>
+        <datalist id="posCustomersPhones"></datalist>
+
+        <!-- === CUSTOM ADD SECTION === -->
+        <label>Add Custom Item:</label>
+        <div class="custom-add custom-item-row">
+          <input type="text" id="customItemName" placeholder="e.g. Cake Service" />
+          <input type="number" id="customItemPrice" min="0" step="0.01" placeholder="Price in USD" />
+          <select id="customItemCurrency" aria-label="Custom item currency">
+            <option value="USD">USD</option>
+            <option value="LBP">LBP</option>
+          </select>
+          <button id="addCustomBtn" class="small-btn">+ Add</button>
+        </div>
+
+        <!-- === DISCOUNT SECTION === -->
+        <label>Discount:</label>
+        <div class="discount-row">
+          <select id="discountType">
+            <option value="none">None</option>
+            <option value="percent">Percent (%)</option>
+            <option value="fixed">Fixed ($)</option>
+          </select>
+          <input type="number" id="discountValue" min="0" step="0.01" placeholder="0" />
+        </div>
+
+        <!-- === PAYMENTS SECTION === -->
+        <label>Payments:</label>
+        <div id="paymentsList" class="payments-list"></div>
+        <button id="addPaymentBtn" class="small-btn">+ Add Payment</button>
+
+        <div class="totals">
+          <p>Subtotal: <span id="subtotalAmount">$0.00</span></p>
+          <p>Discount: <span id="discountAmount">$0.00</span></p>
+          <p class="vat-line">VATable Amount: <span id="taxableAmount">$0.00</span></p>
+          <p class="vat-line">VAT (<span id="vatRateLabel">11%</span> included): <span id="vatAmount">$0.00</span></p>
+          <p><strong>Total Due:</strong> <span id="totalAmount">$0.00</span></p>
+          <p>Paid: <span id="paidAmountDisplay">$0.00</span></p>
+          <p>Change / Balance: <span id="changeAmount">$0.00</span></p>
+        </div>
+
+        <div class="order-buttons">
+          <button id="splitBillBtn">Split Bill</button>
+          <button id="sendKitchenBtn">Send to Kitchen</button>
+          <button id="printBtn">Print Receipt</button>
+          <button id="submitOrderBtn">Submit Order</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+
+
+  <!-- ===== POS SETTINGS MODAL ===== -->
+  <div id="posSettingsModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content settings-modal-content">
+      <div class="modal-header">
+        <div>
+          <h3>POS Settings</h3>
+          <p class="modal-subtitle">Currency display and legal VAT receipt settings.</p>
+        </div>
+        <button id="settingsCloseBtn" class="modal-close" aria-label="Close">×</button>
+      </div>
+
+      <div class="settings-grid">
+        <div class="setting-field">
+          <label for="currencyMode">Display Currency</label>
+          <select id="currencyMode">
+            <option value="USD">USD</option>
+            <option value="LBP">LBP</option>
+          </select>
+        </div>
+
+        <div class="setting-field">
+          <label for="usdLbpRate">USD → LBP Rate</label>
+          <input type="number" id="usdLbpRate" min="1" step="1" value="89500" />
+        </div>
+
+        <div class="setting-field">
+          <label for="vatRate">VAT Rate %</label>
+          <input type="number" id="vatRate" min="0" step="0.01" value="11" />
+        </div>
+      </div>
+
+      <div class="settings-preview-card">
+        <div>
+          <span>Sample $10.00 display</span>
+          <strong id="settingsPreviewTotal">$10.00</strong>
+        </div>
+        <div>
+          <span>VAT included on $10.00</span>
+          <strong id="settingsPreviewVat">$0.99</strong>
+        </div>
+      </div>
+
+      <p class="settings-note">Prices and sales remain stored in USD. VAT is shown as included on receipts, so the dashboard revenue/profit stays clean and does not double count VAT.</p>
+
+      <div class="modal-actions">
+        <button id="settingsCancelBtn" class="modal-btn secondary" type="button">Cancel</button>
+        <button id="settingsSaveBtn" class="modal-btn primary" type="button">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+    <!-- ===== INGREDIENTS MODAL ===== -->
+  <div id="ingredientModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalDishTitle">Customize</h3>
+        <button id="modalCloseBtn" class="modal-close" aria-label="Close">×</button>
+      </div>
+
+      <p class="modal-subtitle">Untick ingredients to remove from this dish.</p>
+
+      <div id="modalIngredientsWrap" class="modal-ingredients"></div>
+
+      <label class="modal-note-label" for="modalNote">Note (optional):</label>
+      <input id="modalNote" class="modal-note" type="text" placeholder="e.g. No spicy, well done..." />
+
+      <div class="modal-actions">
+        <button id="modalCancelBtn" class="modal-btn secondary">Cancel</button>
+        <button id="modalAddBtn" class="modal-btn primary">Add / Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SPLIT BILL MODAL ===== -->
+  <div id="splitModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Split Bill</h3>
+        <button id="splitCloseBtn" class="modal-close" aria-label="Close">×</button>
+      </div>
+
+      <div class="split-grid">
+        <div>
+          <label class="modal-note-label">Guests:</label>
+          <input id="splitGuests" class="modal-note" type="number" min="2" step="1" value="2" />
+        </div>
+        <div>
+          <label class="modal-note-label">Mode:</label>
+          <select id="splitMode" class="modal-note">
+            <option value="equal">Equal Split</option>
+            <option value="items">Split by Items</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="splitItemsArea" class="split-items hidden"></div>
+
+      <div class="split-summary">
+        <h4>Summary</h4>
+        <div id="splitSummaryList"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="splitCancelBtn" class="modal-btn secondary">Cancel</button>
+        <button id="splitApplyBtn" class="modal-btn primary">Apply (Create Payments)</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ===== RESERVATION ACTION MODAL ===== -->
+  <div id="reservationActionModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content reservation-action-modal">
+      <div class="modal-header">
+        <div>
+          <h3 id="reservationActionTitle">Table Reservation</h3>
+          <p class="modal-subtitle">Choose what happened with this reservation before opening the table.</p>
+        </div>
+        <button id="reservationCancelBtn" class="modal-close" aria-label="Close">×</button>
+      </div>
+
+      <div id="reservationActionDetails" class="reservation-action-details"></div>
+
+      <div class="reservation-action-buttons">
+        <button id="reservationDeleteBtn" class="modal-btn danger" type="button">Delete Reservation</button>
+        <button id="reservationArrivedBtn" class="modal-btn primary" type="button">Guests Arrived</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RECEIPTS MODAL ===== -->
+  <div id="receiptsModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content receipts-modal">
+      <div class="modal-header">
+        <h3>Receipts</h3>
+        <button id="receiptsCloseBtn" class="modal-close" aria-label="Close">×</button>
+      </div>
+
+      <input id="receiptSearch" class="modal-note" type="text" placeholder="Search by ref or date..." />
+
+      <div class="receipts-layout">
+        <div class="receipts-list" id="receiptsList"></div>
+
+        <div class="receipt-view" id="receiptView">
+          <p class="hint">Select a receipt to view details.</p>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="receiptsCancelBtn" class="modal-btn secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RECEIPT AREA ===== -->
+  <section id="receiptArea" class="receipt hidden">
+    <div class="receipt-header">
+      <img src="assets/logo.png" alt="Restaurant Logo" class="receipt-logo" />
+      <h2>Restaurant Name</h2>
+      <p>Main Street, Fatqa</p>
+      <p>Tel: +961 71 977 475</p>
+      <p>Tax ID: 123456789</p>
+    </div>
+
+    <hr />
+
+    <div class="receipt-body">
+      <p><strong>Reference:</strong> <span id="receiptRef">#REF0001</span></p>
+      <p><strong>Table:</strong> <span id="receiptTable"></span></p>
+      <p><strong>Date:</strong> <span id="receiptDate"></span></p>
+      <p><strong>Customer:</strong> <span id="receiptCustomer">—</span></p>
+
+      <table class="receipt-items">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody id="receiptItems"></tbody>
+      </table>
+
+      <hr />
+
+      <p><strong>Subtotal:</strong> <span id="receiptSubtotal">$0.00</span></p>
+      <p><strong>Discount:</strong> <span id="receiptDiscount">$0.00</span></p>
+      <p><strong>VATable Amount:</strong> <span id="receiptTaxable">$0.00</span></p>
+      <p><strong>VAT (<span id="receiptVatRate">11%</span> included):</strong> <span id="receiptVat">$0.00</span></p>
+      <p><strong>Total Due:</strong> <span id="receiptTotal">$0.00</span></p>
+
+      <div id="receiptPayments"></div>
+
+      <p><strong>Change / Balance:</strong> <span id="receiptChange">0.00</span></p>
+    </div>
+
+    <hr />
+
+    <div class="receipt-footer">
+      <p>Thank you for dining with us!</p>
+      <p>Visit Again Soon 🍽️</p>
+    </div>
+  </section>
+
+  <script src="customers.js"></script>
+  <script type="module" src="index.js"></script>
+</body>
+
+</html>

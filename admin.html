@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>System Management</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <header class="app-shell-header">
+  <div class="app-shell-header__top">
+    <div class="app-shell-header__brand">
+      <img src="assets/logo.png" alt="Logo" class="app-shell-header__logo" />
+      <div class="app-shell-header__identity">
+        <span class="app-shell-header__eyebrow">Administration</span>
+        <h1>System Management</h1>
+        <p>Manage suppliers, ingredients, and the core setup behind your POS system</p>
+      </div>
+    </div>
+
+    <div class="app-shell-header__actions">
+      <button type="button" onclick="window.location.href='dashboard.html'" class="app-shell-btn app-shell-btn--primary">Dashboard</button>
+      <button type="button" onclick="window.location.href='stock.html'" class="app-shell-btn app-shell-btn--secondary">Stock</button>
+      <button type="button" onclick="window.location.href='menu.html'" class="app-shell-btn app-shell-btn--secondary">POS Menu</button>
+    </div>
+  </div>
+
+  <div class="app-shell-header__bottom">
+    <div class="app-shell-header__meta">
+      <div class="app-shell-chip">Area: <strong>Master Data</strong></div>
+      <div class="app-shell-chip app-shell-chip--ok">Setup: <strong>Active</strong></div>
+    </div>
+  </div>
+</header>
+
+  <main class="admin-layout">
+    <!-- SUPPLIER MANAGEMENT -->
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2>Supplier Management</h2>
+          <p class="section-hint">Add and manage ingredient suppliers</p>
+        </div>
+      </div>
+
+      <div class="form-grid two-col">
+        <div class="field">
+          <label for="supplierName">Supplier Name</label>
+          <input id="supplierName" type="text" placeholder="e.g. Faddoul" />
+        </div>
+
+        <div class="field field-end">
+          <button id="saveSupplierBtn" class="primary-btn" type="button">Save Supplier</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th style="width: 220px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="suppliersTableBody">
+            <tr>
+              <td colspan="3" class="empty-cell">No suppliers yet</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- INGREDIENT MANAGEMENT -->
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2>Ingredient Management</h2>
+          <p class="section-hint">Add ingredients and connect them to suppliers</p>
+        </div>
+      </div>
+
+      <div class="form-grid three-col">
+        <div class="field">
+          <label for="ingredientName">Ingredient Name</label>
+          <input id="ingredientName" type="text" placeholder="e.g. Mushroom" />
+        </div>
+
+        <div class="field">
+          <label for="ingredientSupplier">Supplier</label>
+          <select id="ingredientSupplier">
+            <option value="">— Select Supplier —</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="ingredientUnit">Unit</label>
+          <select id="ingredientUnit">
+            <option value="">— Select Unit —</option>
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="pcs">pcs</option>
+            <option value="ml">ml</option>
+            <option value="L">L</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button id="saveIngredientBtn" class="primary-btn" type="button">Save Ingredient</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Supplier</th>
+              <th>Unit</th>
+              <th>Status</th>
+              <th style="width: 220px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ingredientsTableBody">
+            <tr>
+              <td colspan="5" class="empty-cell">No ingredients yet</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- SUPPLIER DETAILS MODAL -->
+  <div id="supplierModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>Supplier Details</h2>
+        <button type="button" id="closeSupplierModalBtn" class="secondary-btn">Close</button>
+      </div>
+
+      <div class="form-grid two-col">
+        <div class="field">
+          <label for="modalSupplierName">Supplier Name</label>
+          <input id="modalSupplierName" type="text" />
+        </div>
+
+        <div class="field">
+          <label for="modalSupplierContact">Contact Person</label>
+          <input id="modalSupplierContact" type="text" />
+        </div>
+
+        <div class="field">
+          <label for="modalSupplierPhone">Phone</label>
+          <input id="modalSupplierPhone" type="text" />
+        </div>
+
+        <div class="field">
+          <label for="modalSupplierEmail">Email</label>
+          <input id="modalSupplierEmail" type="text" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="modalSupplierAddress">Address</label>
+        <input id="modalSupplierAddress" type="text" />
+      </div>
+
+      <div class="field">
+        <label for="modalSupplierNotes">Notes</label>
+        <textarea id="modalSupplierNotes" rows="4"></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" id="saveSupplierDetailsBtn" class="primary-btn">Save Details</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js"></script>
+  <script src="auth.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

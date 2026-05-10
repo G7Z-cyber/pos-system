@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Menu Management</title>
+  <link rel="stylesheet" href="menu.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js"></script>
+  <script src="auth.js"></script>
+</head>
+<body>
+  <header class="app-shell-header">
+  <div class="app-shell-header__top">
+    <div class="app-shell-header__brand">
+      <img src="assets/logo.png" alt="Logo" class="app-shell-header__logo" />
+      <div class="app-shell-header__identity">
+        <span class="app-shell-header__eyebrow">Menu Control</span>
+        <h1>Menu & Recipes</h1>
+        <p>Build dishes, price them correctly, and manage recipe cost with confidence</p>
+      </div>
+    </div>
+
+    <div class="app-shell-header__actions">
+      <button type="button" onclick="window.location.href='index.html'" class="app-shell-btn app-shell-btn--primary">← Back to POS</button>
+      <button type="button" onclick="window.location.href='stock.html'" class="app-shell-btn app-shell-btn--secondary">Go to Stock</button>
+      <button type="button" onclick="window.location.href='admin.html'" class="app-shell-btn app-shell-btn--secondary">System Management</button>
+    </div>
+  </div>
+
+  <div class="app-shell-header__bottom">
+    <div class="app-shell-header__meta">
+      <div class="app-shell-chip app-shell-chip--info">Focus: <strong>Pricing & Recipes</strong></div>
+      <div class="app-shell-chip">Mode: <strong>Menu Editing</strong></div>
+    </div>
+  </div>
+</header>
+
+  <main class="main-content">
+    <section class="add-dish-panel">
+      <h2 id="formTitle">Add New Dish</h2>
+
+      <div class="dish-form">
+        <label for="dishName">Dish Name:</label>
+        <input type="text" id="dishName" placeholder="e.g. Classic Burger"/>
+
+        <label for="dishCategory">Category:</label>
+        <select id="dishCategory">
+          <option value="">— Select Category —</option>
+          <option value="Main">Main</option>
+          <option value="Starter">Starter</option>
+          <option value="Drink">Drink</option>
+          <option value="Dessert">Dessert</option>
+        </select>
+
+        <label for="dishPrice">Selling Price (USD):</label>
+        <input type="number" id="dishPrice" min="0" step="0.01" placeholder="e.g. 12.00"/>
+
+        <div class="recipe-metrics">
+          <div class="metric-box">
+            <label for="dishRecipeCost">Recipe Cost</label>
+            <input type="text" id="dishRecipeCost" readonly placeholder="$0.00" />
+          </div>
+
+          <div class="metric-box">
+            <label for="dishProfit">Profit</label>
+            <input type="text" id="dishProfit" readonly placeholder="$0.00" />
+          </div>
+
+          <div class="metric-box">
+            <label for="dishMarkup">Markup %</label>
+            <input type="text" id="dishMarkup" readonly placeholder="0%" />
+          </div>
+
+          <div class="metric-box">
+            <label for="dishMargin">Margin %</label>
+            <input type="text" id="dishMargin" readonly placeholder="0%" />
+          </div>
+        </div>
+
+        <h3>Ingredients</h3>
+        <div id="ingredientsList"></div>
+
+        <div class="dish-actions">
+          <button id="addIngredientBtn" type="button">+ Add Ingredient</button>
+          <button id="saveDishBtn" type="button">Add Dish</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="menu-panel">
+      <div class="menu-panel-head">
+        <h2>Current Dishes</h2>
+        <input type="text" id="searchDish" placeholder="Search dishes..."/>
+      </div>
+
+      <table id="menuTable">
+        <thead>
+          <tr>
+            <th>Dish</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Recipe Cost</th>
+            <th>Profit</th>
+            <th>Ingredients</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="menuBody">
+          <tr>
+            <td colspan="7">Loading menu...</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="menu.js"></script>
+</body>
+</html>

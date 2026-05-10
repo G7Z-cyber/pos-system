@@ -1,0 +1,537 @@
+/* ============================
+   MENU MANAGEMENT - PRO VERSION
+   Ingredients from Stock + Costing
+   ============================ */
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+/* ===== HEADER ===== */
+:root {
+  --shell-bg: linear-gradient(135deg, #1d2b3a 0%, #24384d 100%);
+  --shell-panel: rgba(255, 255, 255, 0.08);
+  --shell-border: rgba(255, 255, 255, 0.12);
+  --shell-text: #ffffff;
+  --shell-subtext: rgba(255, 255, 255, 0.78);
+  --shell-primary: #2383e2;
+  --shell-primary-hover: #1d6fc0;
+  --shell-success: #16a34a;
+  --shell-danger: #dc2626;
+  --shell-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+}
+
+.app-shell-header {
+  background: var(--shell-bg);
+  color: var(--shell-text);
+  padding: 22px 28px 18px;
+  border-radius: 0 0 22px 22px;
+  box-shadow: var(--shell-shadow);
+  margin-bottom: 18px;
+}
+
+.app-shell-header__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.app-shell-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  flex: 1;
+}
+
+.app-shell-header__logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 16px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.app-shell-header__identity {
+  min-width: 0;
+}
+
+.app-shell-header__eyebrow {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+  margin-bottom: 4px;
+}
+
+.app-shell-header__identity h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.app-shell-header__identity p {
+  margin: 7px 0 0;
+  color: var(--shell-subtext);
+  font-size: 0.98rem;
+  font-weight: 500;
+}
+
+.app-shell-header__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.app-shell-btn {
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 11px 16px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.18s ease;
+  white-space: nowrap;
+}
+
+.app-shell-btn--primary {
+  background: var(--shell-primary);
+  color: #fff;
+}
+
+.app-shell-btn--primary:hover {
+  background: var(--shell-primary-hover);
+  transform: translateY(-1px);
+}
+
+.app-shell-btn--secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: var(--shell-border);
+}
+
+.app-shell-btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.app-shell-btn--danger {
+  background: var(--shell-danger);
+  color: #fff;
+}
+
+.app-shell-btn--danger:hover {
+  filter: brightness(0.95);
+}
+
+.app-shell-header__bottom {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.app-shell-header__meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.app-shell-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--shell-panel);
+  border: 1px solid var(--shell-border);
+  color: #fff;
+  padding: 9px 12px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.app-shell-chip strong {
+  font-weight: 800;
+}
+
+.app-shell-chip--ok {
+  background: rgba(22, 163, 74, 0.18);
+  border-color: rgba(22, 163, 74, 0.3);
+}
+
+.app-shell-chip--info {
+  background: rgba(35, 131, 226, 0.18);
+  border-color: rgba(35, 131, 226, 0.3);
+}
+
+@media (max-width: 980px) {
+  .app-shell-header__top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .app-shell-header__actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell-header {
+    padding: 18px;
+  }
+
+  .app-shell-header__brand {
+    align-items: flex-start;
+  }
+
+  .app-shell-header__identity h1 {
+    font-size: 1.55rem;
+  }
+
+  .app-shell-header__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell-btn {
+    width: 100%;
+  }
+}
+
+/* ===== MAIN LAYOUT ===== */
+.main-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.add-dish-panel,
+.menu-panel {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  flex: 1 1 48%;
+  min-width: 320px;
+}
+
+#formTitle {
+  margin-top: 0;
+  font-size: 1.3rem;
+}
+
+/* ===== FORM ===== */
+.dish-form label {
+  display: block;
+  margin-top: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.dish-form input,
+.dish-form select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.cost-box {
+  margin-top: 12px;
+  background: #f4f7fb;
+  border: 1px solid #e3e8ef;
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+.cost-box .micro{
+  color:#6c7a89;
+  font-size:0.85rem;
+}
+
+#addIngredientBtn,
+#saveDishBtn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s ease;
+}
+
+#addIngredientBtn {
+  background-color: #00b894;
+}
+
+#addIngredientBtn:hover {
+  background-color: #00cec9;
+}
+
+#saveDishBtn {
+  background-color: #0984e3;
+}
+
+#saveDishBtn:hover {
+  background-color: #74b9ff;
+}
+
+/* ===== INGREDIENT INPUT ROW ===== */
+.ingredient-row {
+  display: grid;
+  grid-template-columns: 1fr 110px 90px 42px;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.ingredient-row select,
+.ingredient-row input {
+  padding: 9px;
+  border: 1px solid #ccc;
+  border-radius: 7px;
+  font-size: 0.95rem;
+}
+
+.ing-meta {
+  grid-column: 1 / -1;
+  font-size: 0.86rem;
+  color: #6c7a89;
+  margin-top: -2px;
+}
+
+.remove-ing {
+  background-color: #d63031;
+  color: white;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  padding: 8px;
+  font-size: 1rem;
+  transition: background-color 0.2s ease;
+}
+
+.remove-ing:hover {
+  background-color: #ff7675;
+}
+
+/* ===== TABLE ===== */
+.menu-panel table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.menu-panel th,
+.menu-panel td {
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+  padding: 10px;
+  font-size: 0.95rem;
+  vertical-align: top;
+}
+
+.menu-panel tr:hover {
+  background-color: #f1f1f1;
+}
+
+.menu-panel input {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.note{
+  margin-top: 12px;
+  color:#566573;
+  font-size:0.9rem;
+  background:#f8fbff;
+  border:1px solid #e3eefb;
+  padding:10px;
+  border-radius:10px;
+}
+
+/* ===== ACTION BUTTONS ===== */
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.edit-btn,
+.delete-btn {
+  border: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+}
+
+.edit-btn {
+  background-color: #ffeaa7;
+}
+
+.edit-btn:hover {
+  background-color: #fdcb6e;
+}
+
+.delete-btn {
+  background-color: #ff7675;
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #d63031;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 992px) {
+  .main-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .add-dish-panel,
+  .menu-panel {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .ingredient-row {
+    grid-template-columns: 1fr 90px 80px 40px;
+  }
+}
+
+@media (max-width: 600px) {
+  .header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .header-buttons {
+    justify-content: center;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .ingredient-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .remove-ing{
+    grid-column: 1 / -1;
+    width:100%;
+  }
+  .ing-meta{
+    grid-column: 1 / -1;
+  }
+}
+/* ===== MENU CATEGORY MANAGER (Menu only) ===== */
+.category-manager{
+  margin-top: 10px;
+  padding: 10px;
+  background: #f8fbff;
+  border: 1px solid #e3eefb;
+  border-radius: 10px;
+}
+
+.inline-row{
+  display:flex;
+  gap:8px;
+  margin-top: 6px;
+}
+
+.inline-row input{
+  flex:1;
+}
+
+.inline-row button{
+  background:#00b894;
+  color:#fff;
+  border:none;
+  padding:10px 12px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:700;
+}
+
+.inline-row button:hover{
+  background:#00cec9;
+}
+
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:10px;
+}
+
+.chip{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:#ecf0f1;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:0.9rem;
+}
+
+.chip .name{
+  font-weight:700;
+}
+
+.chip button{
+  border:none;
+  cursor:pointer;
+  padding:4px 7px;
+  border-radius:8px;
+  font-size:0.85rem;
+  font-weight:700;
+}
+
+.chip .rename{
+  background:#ffeaa7;
+}
+
+.chip .rename:hover{
+  background:#fdcb6e;
+}
+
+.chip .remove{
+  background:#ff7675;
+  color:#fff;
+}
+
+.chip .remove:hover{
+  background:#d63031;
+}
+
+.micro{
+  margin-top:8px;
+  font-size:0.86rem;
+  color:#6c7a89;
+}

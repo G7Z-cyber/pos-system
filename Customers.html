@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customers</title>
+  <link rel="stylesheet" href="customers.css" />
+  <script src="customers.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabaseClient.js"></script>
+<script src="auth.js"></script>
+</head>
+<body>
+  <header class="app-shell-header">
+  <div class="app-shell-header__top">
+    <div class="app-shell-header__brand">
+      <img src="assets/logo.png" alt="Logo" class="app-shell-header__logo" />
+      <div class="app-shell-header__identity">
+        <span class="app-shell-header__eyebrow">Customer Management</span>
+        <h1>Customers & Loyalty</h1>
+        <p>Track customer profiles, visits, loyalty activity, and repeat business</p>
+      </div>
+    </div>
+
+    <div class="app-shell-header__actions">
+      <button type="button" onclick="window.location.href='index.html'" class="app-shell-btn app-shell-btn--primary">← Back to POS</button>
+      <button type="button" onclick="window.location.href='dashboard.html'" class="app-shell-btn app-shell-btn--secondary">Dashboard</button>
+    </div>
+  </div>
+
+  <div class="app-shell-header__bottom">
+    <div class="app-shell-header__meta">
+      <div class="app-shell-chip">Module: <strong>Loyalty</strong></div>
+      <div class="app-shell-chip app-shell-chip--info">Tracking: <strong>Automatic</strong></div>
+    </div>
+  </div>
+</header>
+
+  <main class="layout">
+    <!-- LEFT SIDE -->
+    <section class="card">
+      <h2 class="card-title" id="formTitle">Add Customer</h2>
+
+      <div class="form">
+        <label>Full Name <span class="req">*</span></label>
+        <input id="fullName" type="text" placeholder="e.g. David Chidiac" autocomplete="name" />
+
+        <label>Phone Number <span class="req">*</span></label>
+        <input id="phone" type="tel" placeholder="e.g. +96170123456" autocomplete="tel" />
+
+        <div class="btn-row">
+          <button id="saveCustomerBtn" class="btn primary" type="button">Save Customer</button>
+          <button id="clearFormBtn" class="btn ghost" type="button">Clear</button>
+        </div>
+
+        <div id="customerMsg" class="msg"></div>
+      </div>
+
+      <hr class="sep" />
+
+      <h2 class="card-title">Loyalty (Auto Discount)</h2>
+
+      <div class="loyalty-box">
+        <div class="toggle-row">
+          <div>
+            <div class="label-strong">Enable Loyalty</div>
+            <div class="muted">Discount applies automatically in POS when you enter the customer phone.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="loyaltyEnabled" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label>Every N Visits</label>
+            <input id="loyaltyEveryN" type="number" min="1" step="1" value="5" />
+            <div class="muted small">Example: 5 = every 5th visit</div>
+          </div>
+          <div>
+            <label>Discount %</label>
+            <input id="loyaltyPercent" type="number" min="0" max="100" step="0.5" value="10" />
+            <div class="muted small">Example: 10 = 10% off</div>
+          </div>
+        </div>
+
+        <label>Minimum Receipt Subtotal (USD)</label>
+        <input id="loyaltyMinSubtotal" type="number" min="0" step="0.01" value="0" placeholder="e.g. 20.00" />
+
+        <div class="btn-row">
+          <button id="saveLoyaltyBtn" class="btn primary" type="button">Save Loyalty</button>
+          <button id="resetLoyaltyBtn" class="btn ghost" type="button">Reset</button>
+        </div>
+
+        <div id="loyaltyMsg" class="msg"></div>
+
+        <div class="preview">
+          <div class="muted">Preview</div>
+          <div id="loyaltyPreviewText" class="preview-text">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT SIDE -->
+    <section class="card">
+      <div class="card-top">
+        <div>
+          <h2 class="card-title">Customer List</h2>
+          <div class="muted">Search by name or phone. “View” shows visits + recent receipts.</div>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <div class="muted">Customers</div>
+            <div id="customersCount" class="stat-val">0</div>
+          </div>
+          <div class="stat">
+            <div class="muted">Total Visits</div>
+            <div id="visitsCount" class="stat-val">0</div>
+          </div>
+        </div>
+      </div>
+
+      <input id="searchBar" class="search" type="text" placeholder="Search customers..." />
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width:22%;">Phone (ID)</th>
+              <th style="width:22%;">Name</th>
+              <th style="width:10%;">Visits</th>
+              <th style="width:16%;">Total Spent</th>
+              <th style="width:18%;">Last Visit</th>
+              <th style="width:12%;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="customersBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- VIEW DIALOG -->
+  <dialog id="viewDialog" class="dialog">
+    <div class="dialog-head">
+      <h3 id="viewTitle">Customer</h3>
+      <button id="viewCloseBtn" class="icon-btn" aria-label="Close">×</button>
+    </div>
+
+    <div class="dialog-body">
+      <div class="pill-grid">
+        <div class="pill"><div class="muted">Phone</div><div id="viewPhone" class="pill-val">—</div></div>
+        <div class="pill"><div class="muted">Name</div><div id="viewName" class="pill-val">—</div></div>
+        <div class="pill"><div class="muted">Visits</div><div id="viewVisits" class="pill-val">0</div></div>
+        <div class="pill"><div class="muted">Total Spent</div><div id="viewSpent" class="pill-val">$0.00</div></div>
+        <div class="pill"><div class="muted">Last Visit</div><div id="viewLast" class="pill-val">—</div></div>
+      </div>
+
+      <h4 class="subhead">Recent Receipts (Last 20)</h4>
+      <div class="table-wrap">
+        <table class="table mini">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Ref</th>
+              <th>Subtotal</th>
+              <th>Discount</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="viewReceiptsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="dialog-foot">
+      <button id="viewOkBtn" class="btn primary" type="button">OK</button>
+    </div>
+  </dialog>
+</body>
+</html>

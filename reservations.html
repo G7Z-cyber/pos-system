@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reservations</title>
+  <link rel="stylesheet" href="reservations.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabaseClient.js"></script>
+<script src="auth.js"></script>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="app-shell-header">
+  <div class="app-shell-header__top">
+    <div class="app-shell-header__brand">
+      <img src="assets/logo.png" alt="Logo" class="app-shell-header__logo" />
+      <div class="app-shell-header__identity">
+        <span class="app-shell-header__eyebrow">Front of House</span>
+        <h1>Reservations</h1>
+        <p>Manage bookings, arrivals, seating, and handoff into live POS service</p>
+      </div>
+    </div>
+
+    <div class="app-shell-header__actions">
+      <button type="button" onclick="window.location.href='index.html'" class="app-shell-btn app-shell-btn--primary">POS</button>
+      <button type="button" onclick="window.location.href='customers.html'" class="app-shell-btn app-shell-btn--secondary">Customers</button>
+      <button type="button" onclick="window.location.href='dashboard.html'" class="app-shell-btn app-shell-btn--secondary">Dashboard</button>
+    </div>
+  </div>
+
+  <div class="app-shell-header__bottom">
+    <div class="app-shell-header__meta">
+      <div class="app-shell-chip app-shell-chip--info">Focus: <strong>Bookings & Seating</strong></div>
+      <div class="app-shell-chip">Workflow: <strong>Front Desk</strong></div>
+    </div>
+  </div>
+</header>
+  <main class="page">
+
+    <!-- LEFT -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 id="formTitle">New Reservation</h2>
+          <div class="muted">Fast entry + conflict protection</div>
+        </div>
+        <div class="clock" id="beirutClock">Beirut: —</div>
+      </div>
+
+      <div id="formMsg" class="msg" role="status" aria-live="polite"></div>
+
+      <!-- QUICK HELPERS -->
+      <div class="quickbar">
+        <button id="qbToday" type="button" class="chip">Today</button>
+        <button id="qbTomorrow" type="button" class="chip">Tomorrow</button>
+        <button id="qbNextHour" type="button" class="chip">Next Hour</button>
+        <button id="qbClear" type="button" class="chip chip-ghost">Clear</button>
+      </div>
+
+      <div class="form">
+        <input type="hidden" id="editId" value="" />
+
+        <div class="field">
+          <label>Full Name <span class="req">*</span></label>
+          <input id="resName" type="text" placeholder="e.g. David Chidiac" autocomplete="name" />
+        </div>
+
+        <div class="field">
+          <label>Phone Number <span class="req">*</span></label>
+          <input id="resPhone" type="tel" placeholder="e.g. +96170123456" list="customersPhones" autocomplete="tel" />
+          <datalist id="customersPhones"></datalist>
+          <div class="hint">Tip: start typing a phone to get suggestions from Customers.</div>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>Date <span class="req">*</span></label>
+            <input id="resDate" type="date" />
+          </div>
+          <div class="field">
+            <label>Time <span class="req">*</span></label>
+            <input id="resTime" type="time" />
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>Party Size <span class="req">*</span></label>
+            <input id="resParty" type="number" min="1" step="1" placeholder="e.g. 4" />
+          </div>
+          <div class="field">
+            <label>Table</label>
+            <select id="resTable">
+              <option value="">Any Table</option>
+            </select>
+            <div class="hint">If “Any Table”, you can auto-assign on save or on seat.</div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>Duration (minutes)</label>
+            <input id="resDuration" type="number" min="15" step="5" placeholder="Default from settings" />
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select id="resStatus">
+              <option value="booked">Booked</option>
+              <option value="arrived">Arrived</option>
+              <option value="seated">Seated</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="no_show">No-Show</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Notes (optional)</label>
+          <textarea id="resNotes" rows="3" placeholder="Allergies, special requests, VIP, etc."></textarea>
+        </div>
+
+        <!-- AUTO ASSIGN (NO TOGGLE / NO CIRCLE) -->
+        <div class="box">
+          <div class="box-head">
+            <div>
+              <div class="box-title">Auto Assign</div>
+              <div class="hint">No toggle switch. Clean controls only.</div>
+            </div>
+
+            <div class="box-actions">
+              <select id="autoAssignMode" class="select-compact" title="Auto-assign mode">
+                <option value="off">Auto-assign: Off</option>
+                <option value="save" selected>Auto-assign: On Save</option>
+                <option value="seat">Auto-assign: On Seat</option>
+                <option value="both">Auto-assign: Save + Seat</option>
+              </select>
+
+              <button id="autoAssignBtn" type="button" class="btn btn-secondary">
+                Auto Assign Table
+              </button>
+            </div>
+          </div>
+
+          <div class="hint">
+            Auto-assign chooses a free table for the reservation window (duration + buffer). If none are free, you can still save as “Any Table”.
+          </div>
+        </div>
+
+        <div class="btnrow">
+          <button id="saveResBtn" type="button" class="btn btn-primary">Save Reservation</button>
+          <button id="seatOpenBtn" type="button" class="btn btn-secondary">Seat & Open POS</button>
+        </div>
+
+        <div class="btnrow">
+          <button id="clearResBtn" type="button" class="btn btn-ghost">Clear</button>
+        </div>
+
+        <hr class="sep" />
+
+        <!-- SETTINGS -->
+        <div class="box">
+          <div class="box-head">
+            <div>
+              <div class="box-title">Settings</div>
+              <div class="hint">Affects conflicts + auto-assign</div>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label>Default Duration (minutes)</label>
+              <input id="setDefaultDuration" type="number" min="15" step="5" />
+            </div>
+            <div class="field">
+              <label>Buffer (minutes)</label>
+              <input id="setBuffer" type="number" min="0" step="5" />
+            </div>
+          </div>
+
+          <div class="btnrow">
+            <button id="saveSettingsBtn" type="button" class="btn btn-ghost">Save Settings</button>
+            <button id="resetSettingsBtn" type="button" class="btn btn-ghost">Reset</button>
+          </div>
+
+          <div class="hint">Recommended buffer: 10–15 minutes.</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- RIGHT -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Reservations</h2>
+          <div class="muted">Search, filter, view, and take actions</div>
+        </div>
+
+        <input id="searchBox" class="search" type="text" placeholder="Search name / phone / notes..." />
+      </div>
+
+      <div class="filters">
+        <div class="field">
+          <label>Date View</label>
+          <select id="dateView">
+            <option value="today">Today</option>
+            <option value="upcoming" selected>Upcoming</option>
+            <option value="all">All</option>
+            <option value="date">Specific Date</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Pick Date</label>
+          <input id="pickDate" type="date" />
+        </div>
+
+        <div class="field">
+          <label>Status</label>
+          <select id="statusFilter">
+            <option value="all" selected>All</option>
+            <option value="booked">Booked</option>
+            <option value="arrived">Arrived</option>
+            <option value="seated">Seated</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="no_show">No-Show</option>
+          </select>
+        </div>
+
+        <div class="filter-actions">
+          <button id="exportBtn" type="button" class="btn btn-ghost">Backup</button>
+          <label class="filebtn">
+            Restore
+            <input type="file" id="restoreInput" accept="application/json" hidden />
+          </label>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="k">Shown</div><div class="v" id="statShown">0</div></div>
+        <div class="stat"><div class="k">Booked</div><div class="v" id="statBooked">0</div></div>
+        <div class="stat"><div class="k">Arrived</div><div class="v" id="statArrived">0</div></div>
+        <div class="stat"><div class="k">Seated</div><div class="v" id="statSeated">0</div></div>
+      </div>
+
+      <div class="tablewrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Date/Time</th>
+              <th>Customer</th>
+              <th>Party</th>
+              <th>Table</th>
+              <th>Status</th>
+              <th>Notes</th>
+              <th style="width:320px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="resBody"></tbody>
+        </table>
+      </div>
+
+      <div class="hint">Seating writes POS handoff to localStorage and redirects to POS.</div>
+    </section>
+
+  </main>
+
+  <!-- VIEW DIALOG -->
+  <dialog id="viewDialog" class="dialog">
+    <div class="dialog-head">
+      <div class="dialog-title" id="viewTitle">Reservation</div>
+      <button type="button" class="x" id="viewCloseBtn" aria-label="Close">×</button>
+    </div>
+
+    <div class="dialog-body">
+      <div class="pills">
+        <div class="pill"><div class="pk">Customer</div><div class="pv" id="vCustomer">—</div></div>
+        <div class="pill"><div class="pk">Phone</div><div class="pv" id="vPhone">—</div></div>
+        <div class="pill"><div class="pk">Party</div><div class="pv" id="vParty">—</div></div>
+        <div class="pill"><div class="pk">Date/Time</div><div class="pv" id="vDateTime">—</div></div>
+        <div class="pill"><div class="pk">Table</div><div class="pv" id="vTable">—</div></div>
+        <div class="pill"><div class="pk">Status</div><div class="pv" id="vStatus">—</div></div>
+      </div>
+
+      <div class="sub">Notes</div>
+      <div class="note" id="vNotes">—</div>
+
+      <div class="sub">Cancel Reason (optional)</div>
+      <input id="cancelReason" type="text" class="input" placeholder="e.g. Customer called to cancel" />
+
+      <div class="sub">Quick Actions</div>
+      <div class="qactions">
+        <button id="qaArrived" type="button" class="btn btn-ghost">Mark Arrived</button>
+        <button id="qaSeatOpen" type="button" class="btn btn-secondary">Seat & Open POS</button>
+        <button id="qaComplete" type="button" class="btn btn-ghost">Mark Completed</button>
+        <button id="qaNoShow" type="button" class="btn btn-ghost">No-Show</button>
+        <button id="qaCancel" type="button" class="btn btn-danger">Cancel</button>
+      </div>
+
+      <div class="sub">POS Link</div>
+      <a id="openPosLink" class="poslink" href="index.html">Open in POS</a>
+    </div>
+
+    <div class="dialog-foot">
+      <button id="viewEditBtn" type="button" class="btn btn-ghost">Edit</button>
+      <button id="viewDeleteBtn" type="button" class="btn btn-danger">Delete</button>
+      <button id="viewOkBtn" type="button" class="btn btn-primary">OK</button>
+    </div>
+  </dialog>
+
+  <!-- Scripts -->
+  <script src="customers-lib.js" defer></script>
+  <script src="reservations.js" defer></script>
+</body>
+</html>

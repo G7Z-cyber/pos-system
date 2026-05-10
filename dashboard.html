@@ -1,0 +1,280 @@
+<!-- dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POS Business Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js"></script>
+  <script src="auth.js"></script>
+</head>
+<body>
+  <header class="app-shell-header dashboard-shell-header">
+  <div class="app-shell-header__top">
+    <div class="app-shell-header__brand">
+      <img src="assets/logo.png" alt="Logo" class="app-shell-header__logo" />
+      <div class="app-shell-header__identity">
+        <span class="app-shell-header__eyebrow">Analytics</span>
+        <h1>Business Dashboard</h1>
+        <p>Sales, profit, stock, closing, customers, reservations, costs, and export-ready analytics</p>
+      </div>
+    </div>
+
+    <div class="dashboard-header-controls">
+      <div class="dashboard-header-group">
+        <label for="rangePreset">Date Range</label>
+        <select id="rangePreset">
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="last7">Last 7 Days</option>
+          <option value="last30">Last 30 Days</option>
+          <option value="mtd">Month to Date</option>
+          <option value="ytd">Year to Date</option>
+          <option value="all">All Time</option>
+          <option value="custom">Custom</option>
+        </select>
+
+        <div id="customRange" class="dashboard-custom-range hidden">
+          <input type="date" id="startDate" />
+          <span>to</span>
+          <input type="date" id="endDate" />
+          <button id="applyRangeBtn" class="app-shell-btn app-shell-btn--secondary app-shell-btn--small">Apply</button>
+        </div>
+      </div>
+
+      <div class="dashboard-header-group dashboard-header-group--currency">
+        <label for="dashboardCurrency">Dashboard Currency</label>
+        <select id="dashboardCurrency">
+          <option value="USD">USD</option>
+          <option value="LBP">LBP</option>
+        </select>
+        <p class="dashboard-header-note">Uses POS rate from Settings</p>
+      </div>
+
+      <div class="dashboard-header-actions">
+        <button id="refreshDashboardBtn" class="app-shell-btn app-shell-btn--secondary">Refresh</button>
+        <button id="fixedCostsBtn" class="app-shell-btn app-shell-btn--secondary">Fixed Costs</button>
+        <button id="exportBtn" class="app-shell-btn app-shell-btn--success">Export</button>
+        <button type="button" onclick="window.location.href='index.html'" class="app-shell-btn app-shell-btn--primary">Back to POS</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-shell-header__bottom">
+    <div class="app-shell-header__meta">
+      <div class="app-shell-chip app-shell-chip--info">View: <strong>Analytics</strong></div>
+      <div class="app-shell-chip">Reporting: <strong>Live</strong></div>
+      <div class="app-shell-chip app-shell-chip--ok">Mode: <strong>Read Only</strong></div>
+    </div>
+  </div>
+</header>
+
+  <main class="dashboard">
+    <section id="dashboardMessage" class="dashboard-message hidden"></section>
+
+    <section class="toolbar-card">
+      <div>
+        <h2>Dashboard Overview</h2>
+        <p id="rangeLabel">Loading range...</p>
+      </div>
+      <div class="toolbar-right">
+        <label class="search-wrap">
+          <span>Search Items</span>
+          <input type="search" id="itemSearch" placeholder="Search item, SKU, category..." />
+        </label>
+        <label class="search-wrap">
+          <span>Stock Filter</span>
+          <select id="stockSeverityFilter">
+            <option value="all">All stock</option>
+            <option value="critical">Critical only</option>
+            <option value="low">Low + Critical</option>
+            <option value="out">Out of stock</option>
+          </select>
+        </label>
+        <label class="search-wrap">
+          <span>Export Type</span>
+          <select id="exportMode">
+            <option value="full">Full workbook</option>
+            <option value="sales">Sales only</option>
+            <option value="stock">Stock only</option>
+            <option value="costs">Fixed costs only</option>
+            <option value="closing">Closing report</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <nav class="dashboard-tabs" aria-label="Dashboard sections">
+      <button class="tab-btn active" data-tab="overview">Overview</button>
+      <button class="tab-btn" data-tab="sales">Sales</button>
+      <button class="tab-btn" data-tab="items">Items</button>
+      <button class="tab-btn" data-tab="payments">Closing</button>
+      <button class="tab-btn" data-tab="stock">Stock</button>
+      <button class="tab-btn" data-tab="costs">Costs</button>
+      <button class="tab-btn" data-tab="customers">Customers</button>
+      <button class="tab-btn" data-tab="export">Export</button>
+    </nav>
+
+    <section class="tab-panel active" id="tab-overview">
+      <section class="alerts-card">
+        <div class="card-head"><h3>Action Needed</h3><span class="chip">Live checks</span></div>
+        <div id="alertsList" class="alerts-list"></div>
+      </section>
+
+      <section class="stats-grid">
+        <div class="stat-card primary-card drill-card" data-target-tab="sales"><h3>Revenue</h3><p id="kpiRevenue">$0.00</p><div class="mini" id="kpiRevenueNote">—</div></div>
+        <div class="stat-card"><h3>Orders</h3><p id="kpiOrders">0</p><div class="mini" id="kpiOrdersNote">—</div></div>
+        <div class="stat-card"><h3>Average Order Value</h3><p id="kpiAov">$0.00</p><div class="mini" id="kpiAovNote">—</div></div>
+        <div class="stat-card danger-card"><h3>Discounts</h3><p id="kpiDiscounts">$0.00</p><div class="mini">Receipt + line discounts</div></div>
+        <div class="stat-card drill-card" data-target-tab="items"><h3>COGS</h3><p id="kpiCogs">$0.00</p><div class="mini" id="kpiCogsNote">Best available cost estimate</div></div>
+        <div class="stat-card good-card"><h3>Gross Profit</h3><p id="kpiGrossProfit">$0.00</p><div class="mini" id="kpiGrossMargin">Margin: —</div></div>
+        <div class="stat-card drill-card" data-target-tab="costs"><h3>Fixed Cost in Selected Range</h3><p id="kpiFixedCosts">$0.00</p><div class="mini">Used for Net Profit</div></div>
+        <div class="stat-card"><h3>Monthly Fixed Cost Run Rate</h3><p id="kpiMonthlyRunRate">$0.00</p><div class="mini">Normal monthly load</div></div>
+        <div class="stat-card highlight"><h3>Net Profit</h3><p id="kpiNetProfit">$0.00</p><div class="mini" id="kpiNetMargin">Net margin: —</div></div>
+        <div class="stat-card"><h3>Paid Receipts</h3><p id="paidReceipts">0</p><div class="mini">Closed receipts in range</div></div>
+        <div class="stat-card warning-card"><h3>Open Tables</h3><p id="activeTables">0</p><div class="mini">Currently active tables</div></div>
+        <div class="stat-card warning-card"><h3>Unpaid Tables</h3><p id="unpaidTables">0</p><div class="mini">Open balance tables</div></div>
+        <div class="stat-card danger-card drill-card" data-target-tab="stock"><h3>Low Stock Alerts</h3><p id="kpiLowStock">0</p><div class="mini" id="kpiLowStockNote">—</div></div>
+      </section>
+
+      <section class="stats-grid forecast-grid">
+        <div class="stat-card"><h3>Break-even Revenue in Range</h3><p id="breakEven">—</p><div class="mini">Based on gross margin and range fixed cost</div></div>
+        <div class="stat-card"><h3>Remaining to Break Even</h3><p id="breakEvenRemaining">—</p><div class="mini">Revenue still needed in this range</div></div>
+        <div class="stat-card"><h3>Projected Monthly Revenue</h3><p id="projectedMonthlyRevenue">—</p><div class="mini">Pace-based estimate</div></div>
+        <div class="stat-card"><h3>Projected Monthly Net Profit</h3><p id="projectedMonthlyNetProfit">—</p><div class="mini">Uses monthly run rate</div></div>
+      </section>
+
+      <section class="charts-grid compact-charts">
+        <div class="chart-card wide"><div class="card-head"><h3>Revenue, Gross Profit, Net Profit</h3><span class="chip">Daily</span></div><canvas id="revenueChart"></canvas></div>
+        <div class="chart-card"><div class="card-head"><h3>Payment Split</h3><span class="chip">Amount</span></div><canvas id="paymentsChart"></canvas></div>
+        <div class="chart-card"><div class="card-head"><h3>Top Selling Items</h3><span class="chip">Qty</span></div><canvas id="topItemsChart"></canvas></div>
+        <div class="chart-card"><div class="card-head"><h3>Sales by Hour</h3><span class="chip">Peak hours</span></div><canvas id="hourlyChart"></canvas></div>
+      </section>
+
+      <section class="insights two-col">
+        <div class="insight-card"><h3>Operational Signals</h3><div class="insight-row"><span>Top Item by Quantity</span><strong id="topIngredient">—</strong></div><div class="insight-row"><span>Most Discounted Item</span><strong id="topDiscountItem">—</strong></div><div class="insight-row"><span>Best Payment Method</span><strong id="bestPaymentMethod">—</strong></div><div class="insight-row"><span>Best Sales Hour</span><strong id="bestSalesHour">—</strong></div></div>
+        <div class="insight-card"><h3>Live Table Snapshot</h3><div class="table-wrap compact"><table class="mini-table compact-table"><thead><tr><th>Table</th><th>Status</th><th>Items</th><th>Total</th><th>Paid</th><th>Balance</th></tr></thead><tbody id="openTablesBody"></tbody></table></div></div>
+      </section>
+    </section>
+
+    <section class="tab-panel" id="tab-sales">
+      <section class="charts-grid compact-charts">
+        <div class="chart-card"><div class="card-head"><h3>Revenue vs COGS</h3><span class="chip">Cost control</span></div><canvas id="profitChart"></canvas></div>
+        <div class="chart-card"><div class="card-head"><h3>Revenue by Category</h3><span class="chip">Menu mix</span></div><canvas id="categoryChart"></canvas></div>
+        <div class="chart-card"><div class="card-head"><h3>Discounts Over Time</h3><span class="chip">Leakage</span></div><canvas id="discountChart"></canvas></div>
+        <div class="chart-card"><div class="card-head"><h3>Sales Heatmap</h3><span class="chip">Weekday/hour</span></div><canvas id="heatmapChart"></canvas></div>
+      </section>
+      <section class="data-card"><div class="card-head"><h3>Receipt Drill-down</h3><span class="chip">Click export for full data</span></div><div class="table-wrap"><table class="mini-table"><thead><tr><th>Date</th><th>Ref</th><th>Table</th><th>Customer</th><th>Status</th><th>Total</th><th>COGS</th><th>Profit</th><th>Paid</th><th>Balance</th></tr></thead><tbody id="receiptsTableBody"></tbody></table></div></section>
+    </section>
+
+    <section class="tab-panel" id="tab-items">
+      <section class="charts-grid compact-charts">
+        <div class="chart-card"><div class="card-head"><h3>Top Profit Items</h3><span class="chip">Profit</span></div><canvas id="topProfitItemsChart"></canvas></div>
+        <div class="chart-card"><div class="card-head"><h3>Lowest Margin Items</h3><span class="chip">Needs review</span></div><canvas id="lowMarginChart"></canvas></div>
+      </section>
+      <section class="data-grid">
+        <div class="data-card"><div class="card-head"><h3>Item Performance</h3><span class="chip">Searchable</span></div><div class="table-wrap"><table class="mini-table"><thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Revenue</th><th>COGS</th><th>Profit</th><th>Margin</th><th>Missing Cost?</th></tr></thead><tbody id="itemsTableBody"></tbody></table></div></div>
+        <div class="data-card"><div class="card-head"><h3>Missing Cost Data</h3><span class="chip">Fix stock/product costs</span></div><div class="table-wrap"><table class="mini-table compact-table"><thead><tr><th>Item</th><th>Revenue</th><th>Qty</th><th>Reason</th></tr></thead><tbody id="missingCostBody"></tbody></table></div></div>
+      </section>
+    </section>
+
+    <section class="tab-panel" id="tab-payments">
+      <section class="stats-grid">
+        <div class="stat-card primary-card"><h3>Total Sales</h3><p id="closingTotalSales">$0.00</p><div class="mini">Selected range</div></div>
+        <div class="stat-card"><h3>Cash USD Expected</h3><p id="closingCashUsd">$0.00</p><div class="mini">Cash drawer</div></div>
+        <div class="stat-card"><h3>Cash LBP Expected</h3><p id="closingCashLbp">0 LBP</p><div class="mini">Converted or entered LBP</div></div>
+        <div class="stat-card"><h3>Card Total</h3><p id="closingCard">$0.00</p><div class="mini">Card payments</div></div>
+        <div class="stat-card danger-card"><h3>Discounts</h3><p id="closingDiscounts">$0.00</p><div class="mini">Total discounts</div></div>
+        <div class="stat-card warning-card"><h3>Open Balance</h3><p id="closingOpenBalance">$0.00</p><div class="mini">Unpaid active tables</div></div>
+      </section>
+      <section class="data-card"><div class="card-head"><h3>Payment Breakdown</h3><span class="chip">Cashier closing</span></div><div class="table-wrap"><table class="mini-table compact-table"><thead><tr><th>Method</th><th>Currency</th><th>Amount USD</th><th>Amount LBP</th><th>Receipts</th></tr></thead><tbody id="paymentsTableBody"></tbody></table></div></section>
+    </section>
+
+    <section class="tab-panel" id="tab-stock">
+      <section class="stats-grid">
+        <div class="stat-card"><h3>Stock Value at Cost</h3><p id="stockValueCost">$0.00</p><div class="mini">Based on cost fields</div></div>
+        <div class="stat-card"><h3>Stock Value at Sale</h3><p id="stockValueSale">$0.00</p><div class="mini">Potential revenue</div></div>
+        <div class="stat-card good-card"><h3>Potential Stock Profit</h3><p id="stockPotentialProfit">$0.00</p><div class="mini">Sale value minus cost value</div></div>
+        <div class="stat-card danger-card"><h3>Out of Stock</h3><p id="stockOutCount">0</p><div class="mini">Needs action</div></div>
+      </section>
+      <section class="data-grid">
+        <div class="data-card"><div class="card-head"><h3>Low Stock Items</h3><span class="chip">Inventory signals</span></div><ul id="lowStockList"></ul></div>
+        <div class="data-card"><div class="card-head"><h3>Stock Intelligence</h3><span class="chip">Valuation</span></div><div class="table-wrap"><table class="mini-table"><thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Unit</th><th>Cost</th><th>Price</th><th>Value Cost</th><th>Value Sale</th><th>Status</th></tr></thead><tbody id="stockTableBody"></tbody></table></div></div>
+      </section>
+    </section>
+
+    <section class="tab-panel" id="tab-costs">
+      <section class="stats-grid">
+        <div class="stat-card"><h3>Fixed Cost in Selected Range</h3><p id="costsRangeCard">$0.00</p><div class="mini">Prorated by selected dates</div></div>
+        <div class="stat-card"><h3>Monthly Run Rate</h3><p id="costsMonthlyCard">$0.00</p><div class="mini">Normal monthly fixed cost load</div></div>
+        <div class="stat-card"><h3>Yearly Run Rate</h3><p id="costsYearlyCard">$0.00</p><div class="mini">Estimated annual fixed cost</div></div>
+        <div class="stat-card"><h3>Cost % of Revenue</h3><p id="costsRevenuePct">—</p><div class="mini">Range fixed cost / revenue</div></div>
+      </section>
+      <section class="charts-grid compact-charts"><div class="chart-card"><div class="card-head"><h3>Fixed Cost by Group</h3><span class="chip">Range amount</span></div><canvas id="costGroupChart"></canvas></div><div class="chart-card"><div class="card-head"><h3>Monthly Run Rate by Group</h3><span class="chip">Monthly</span></div><canvas id="costRunRateChart"></canvas></div></section>
+      <section class="data-card"><div class="card-head"><h3>Fixed Costs Table</h3><button id="openCostsFromTab" class="btn primary small">Manage Fixed Costs</button></div><div class="table-wrap"><table class="mini-table"><thead><tr><th>Name</th><th>Group</th><th>Amount</th><th>Frequency</th><th>Range Cost</th><th>Monthly Equivalent</th><th>Yearly Equivalent</th><th>Active</th></tr></thead><tbody id="costsTablePreviewBody"></tbody></table></div></section>
+    </section>
+
+    <section class="tab-panel" id="tab-customers">
+      <section class="stats-grid">
+        <div class="stat-card"><h3>Known Customers</h3><p id="customerCount">0</p><div class="mini">From customer records</div></div>
+        <div class="stat-card"><h3>Customers in Range</h3><p id="customersInRange">0</p><div class="mini">Receipts with phone/name</div></div>
+        <div class="stat-card"><h3>Returning Customers</h3><p id="returningCustomers">0</p><div class="mini">2+ receipts in range</div></div>
+        <div class="stat-card"><h3>Upcoming Reservations Today</h3><p id="reservationsToday">0</p><div class="mini">Not cancelled/completed</div></div>
+        <div class="stat-card"><h3>No-shows</h3><p id="reservationsNoShow">0</p><div class="mini">Selected range</div></div>
+        <div class="stat-card"><h3>Average Party Size</h3><p id="avgPartySize">—</p><div class="mini">Selected range</div></div>
+      </section>
+      <section class="data-grid"><div class="data-card"><div class="card-head"><h3>Top Customers</h3><span class="chip">Spend</span></div><div class="table-wrap"><table class="mini-table compact-table"><thead><tr><th>Customer</th><th>Phone</th><th>Receipts</th><th>Spend</th></tr></thead><tbody id="customersTableBody"></tbody></table></div></div><div class="data-card"><div class="card-head"><h3>Reservations</h3><span class="chip">Range + today</span></div><div class="table-wrap"><table class="mini-table compact-table"><thead><tr><th>Date/Time</th><th>Name</th><th>Phone</th><th>Table</th><th>Party</th><th>Status</th></tr></thead><tbody id="reservationsTableBody"></tbody></table></div></div></section>
+    </section>
+
+    <section class="tab-panel" id="tab-export">
+      <section class="data-card"><div class="card-head"><h3>Power BI / Tableau Export</h3><span class="chip">Structured workbook</span></div><p class="micro-note">The export keeps calculations internally in USD and also includes LBP columns using the dashboard exchange rate. It does not write to the database.</p><div class="export-actions"><button id="exportFullBtn" class="btn success">Export Full Workbook</button><button id="exportSalesBtn" class="btn secondary">Sales Only</button><button id="exportStockBtn" class="btn secondary">Stock Only</button><button id="exportCostsBtn" class="btn secondary">Costs Only</button><button id="exportClosingBtn" class="btn secondary">Closing Report</button></div><div class="table-wrap"><table class="mini-table"><thead><tr><th>Sheet</th><th>Purpose</th></tr></thead><tbody id="exportSheetsBody"></tbody></table></div></section>
+    </section>
+  </main>
+
+  <dialog id="costsDialog" class="dialog">
+    <div class="dialog-head">
+      <h3>Fixed Costs</h3>
+      <button id="costsCloseBtn" class="icon-btn" aria-label="Close">×</button>
+    </div>
+    <div class="dialog-body">
+      <div class="costs-top">
+        <div class="costs-summary">
+          <div class="pill"><span>Selected Range</span><strong id="costsRangeLabel">—</strong></div>
+          <div class="pill"><span>Fixed Cost in Selected Range</span><strong id="costsTotalRange">$0.00</strong></div>
+          <div class="pill"><span>Monthly Fixed Cost Run Rate</span><strong id="costsMonthlyRunRate">$0.00</strong></div>
+        </div>
+        <button id="addCostBtn" class="btn primary">+ Add Cost</button>
+      </div>
+      <div class="table-wrap">
+        <table class="mini-table">
+          <thead>
+            <tr><th>Enabled</th><th>Name</th><th>Group</th><th>Amount</th><th>Frequency</th><th>Start</th><th>End</th><th>Selected Range Cost</th><th>Monthly Equivalent</th><th>Yearly Equivalent</th><th>Notes</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="costsBody"></tbody>
+        </table>
+      </div>
+      <p class="micro-note"><strong>Selected Range Cost</strong> is prorated and used in Net Profit for the chosen dates. <strong>Monthly Run Rate</strong> shows the normal monthly fixed-cost load. Example: monthly rent $600 + electricity $300 + employee $400 = $1,300/month. Fixed costs are stored locally; the dashboard does not write to your sales database.</p>
+    </div>
+  </dialog>
+
+  <dialog id="costFormDialog" class="dialog form-dialog">
+    <div class="dialog-head">
+      <h3 id="costFormTitle">Add Fixed Cost</h3>
+      <button id="costFormCloseBtn" class="icon-btn" aria-label="Close">×</button>
+    </div>
+    <div class="dialog-body">
+      <div class="grid-2"><div><label>Name <span class="req">*</span></label><input type="text" id="costName" placeholder="e.g. Rent" /></div><div><label>Group</label><input type="text" id="costGroup" placeholder="e.g. Payroll, Utilities" /></div></div>
+      <div class="grid-2"><div><label>Amount in USD <span class="req">*</span></label><input type="number" id="costAmount" min="0" step="0.01" placeholder="1500" /></div><div><label>Frequency <span class="req">*</span></label><select id="costFreq"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly" selected>Monthly</option><option value="yearly">Yearly</option><option value="one_time">One-time</option></select></div></div>
+      <div class="grid-2"><div><label>Start Date <span class="req">*</span></label><input type="date" id="costStart" /></div><div><label>End Date</label><input type="date" id="costEnd" /></div></div>
+      <div class="grid-2"><div><label>Enabled</label><select id="costEnabled"><option value="true" selected>Yes</option><option value="false">No</option></select></div><div><label>Notes</label><input type="text" id="costNotes" placeholder="Optional" /></div></div>
+      <div class="dialog-foot"><button id="costFormCancelBtn" class="btn secondary">Cancel</button><button id="costFormSaveBtn" class="btn primary">Save</button></div>
+    </div>
+  </dialog>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

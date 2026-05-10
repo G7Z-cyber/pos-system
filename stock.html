@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory Management</title>
+  <link rel="stylesheet" href="stock.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js"></script>
+  <script src="auth.js"></script>
+</head>
+
+<body>
+  <header class="app-shell-header">
+    <div class="app-shell-header__top">
+      <div class="app-shell-header__brand">
+        <img src="assets/logo.png" alt="Logo" class="app-shell-header__logo" />
+        <div class="app-shell-header__identity">
+          <span class="app-shell-header__eyebrow">Inventory</span>
+          <h1>Inventory Management</h1>
+          <p>Monitor stock, receive goods, track waste, and maintain supplier workflows</p>
+        </div>
+      </div>
+
+      <div class="app-shell-header__actions">
+        <button type="button" onclick="window.location.href='index.html'" class="app-shell-btn app-shell-btn--primary">←
+          Back to POS</button>
+        <button type="button" onclick="window.location.href='menu.html'"
+          class="app-shell-btn app-shell-btn--secondary">Go to Menu</button>
+        <button type="button" id="backupBtn" class="app-shell-btn app-shell-btn--secondary">Backup</button>
+        <button type="button" id="restoreBtn" class="app-shell-btn app-shell-btn--secondary">Restore</button>
+        <button type="button" id="prepBtn" class="app-shell-btn app-shell-btn--secondary">Prep</button>
+      </div>
+    </div>
+
+    <div class="app-shell-header__bottom">
+      <div class="app-shell-header__meta">
+        <div class="app-shell-chip">Inventory Area: <strong>Stock Control</strong></div>
+        <div class="app-shell-chip app-shell-chip--ok">Status: <strong>Connected</strong></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="stock-shell">
+    <section id="stockMessage" class="app-message hidden"></section>
+
+    <section class="summary-grid">
+      <article class="summary-card">
+        <span>Total Stock Value</span>
+        <strong id="cardTotalValue">$0.00</strong>
+        <small>Current inventory at average cost</small>
+      </article>
+      <article class="summary-card">
+        <span>Low Stock</span>
+        <strong id="cardLowStock">0</strong>
+        <small>Items below suggested threshold</small>
+      </article>
+      <article class="summary-card">
+        <span>Out of Stock</span>
+        <strong id="cardOutStock">0</strong>
+        <small>Items with zero quantity</small>
+      </article>
+      <article class="summary-card">
+        <span>Missing Cost</span>
+        <strong id="cardMissingCost">0</strong>
+        <small>Fix these for better COGS</small>
+      </article>
+      <article class="summary-card health-card">
+        <span>Inventory Health</span>
+        <strong id="cardHealth">100%</strong>
+        <small id="cardHealthNote">Ready</small>
+      </article>
+    </section>
+
+    <nav class="stock-tabs" aria-label="Inventory sections">
+      <button class="stock-tab active" data-tab="overview">Overview</button>
+      <button class="stock-tab" data-tab="receive">Receive Stock</button>
+      <button class="stock-tab" data-tab="inventory">Inventory</button>
+      <button class="stock-tab" data-tab="waste">Waste</button>
+      <button class="stock-tab" data-tab="history">History</button>
+    </nav>
+
+    <section id="tab-overview" class="tab-panel active">
+      <div class="overview-grid">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Action Needed</h2>
+              <p class="hint">Important stock issues to fix first</p>
+            </div>
+            <button id="refreshStockBtn" type="button" class="secondary-btn">Refresh</button>
+          </div>
+          <div id="stockAlerts" class="alerts-list"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Suggested Reorders</h2>
+              <p class="hint">Fast reorder suggestions from current stock levels</p>
+            </div>
+          </div>
+          <div id="reorderSuggestions" class="suggestion-list"></div>
+        </section>
+
+        <section class="card wide-card">
+          <div class="card-head">
+            <div>
+              <h2>Supplier Snapshot</h2>
+              <p class="hint">Stock value and item count by supplier</p>
+            </div>
+          </div>
+          <div id="supplierSnapshot" class="supplier-grid"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="tab-receive" class="tab-panel">
+      <div class="receive-grid">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Batch Receive from Supplier</h2>
+              <p class="hint">Receive multiple items from the same supplier in one workflow.</p>
+            </div>
+            <span class="badge">Database connected</span>
+          </div>
+
+          <div class="grid-3">
+            <div>
+              <label for="batchSupplier">Supplier</label>
+              <select id="batchSupplier">
+                <option value="">All suppliers</option>
+              </select>
+            </div>
+            <div>
+              <label for="batchInvoice">Invoice / Reference</label>
+              <input id="batchInvoice" type="text" placeholder="Optional invoice number" />
+            </div>
+            <div>
+              <label for="templateSelect">Supplier Template</label>
+              <select id="templateSelect">
+                <option value="">— Select Template —</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="toolbar-row">
+            <button id="useTemplateBtn" type="button" class="secondary-btn">Use Template</button>
+            <button id="addBatchLineBtn" type="button">+ Add Line</button>
+            <button id="saveTemplateBtn" type="button" class="secondary-btn">Save as Template</button>
+            <button id="deleteTemplateBtn" type="button" class="secondary-btn">Delete Template</button>
+          </div>
+
+          <div class="table-wrap receive-table-wrap">
+            <table class="lines-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Purchase Unit</th>
+                  <th>Qty</th>
+                  <th>Cost / Purchase Unit</th>
+                  <th>Line Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="batchLinesBody"></tbody>
+            </table>
+          </div>
+
+          <div class="delivery-foot">
+            <div class="totals-box">
+              <div><span>Lines</span><strong id="batchLineCount">0</strong></div>
+              <div><span>Total Value</span><strong id="batchTotalValue">$0.00</strong></div>
+            </div>
+            <button id="confirmBatchReceiveBtn" type="button" class="primary-btn">Receive Stock</button>
+          </div>
+        </section>
+
+        <section class="card compact-card">
+          <div class="card-head">
+            <div>
+              <h2>Quick Add Stock</h2>
+              <p class="hint">Same safe database flow, one item at a time.</p>
+            </div>
+          </div>
+
+          <div>
+            <label for="addStockItemInput">Item</label>
+            <input id="addStockItemInput" list="addStockItemList" placeholder="Type or select item" />
+            <datalist id="addStockItemList"></datalist>
+            <select id="addStockItem" hidden>
+              <option value="">— Select Item —</option>
+            </select>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <label for="addStockPurchaseUnit">Purchase Unit</label>
+              <select id="addStockPurchaseUnit" disabled>
+                <option value="">— Auto —</option>
+              </select>
+            </div>
+            <div>
+              <label for="addStockQty">Quantity</label>
+              <input id="addStockQty" type="number" min="0.01" step="0.01" placeholder="e.g. 10" />
+            </div>
+          </div>
+
+          <div>
+            <label for="addStockCost">Cost per Purchase Unit</label>
+            <input id="addStockCost" type="number" min="0.01" step="0.01" placeholder="e.g. 1.50" />
+          </div>
+
+          <button id="addStockBtn" class="primary-btn full-btn" type="button">Add Stock</button>
+          <p class="micro-note">Quantity is entered in the purchase unit and converted into the base unit stored in
+            inventory.</p>
+        </section>
+      </div>
+    </section>
+
+    <section id="tab-inventory" class="tab-panel">
+      <section class="card">
+        <div class="card-head stock-card-head">
+          <div>
+            <h2>Current Inventory</h2>
+            <p class="hint">Search, filter, reorder, count, and inspect stock.</p>
+          </div>
+          <div class="right-tools">
+            <button id="exportStockBtn" type="button" class="secondary-btn">Export CSV</button>
+          </div>
+        </div>
+
+        <div class="stock-toolbar">
+          <input id="inventorySearch" type="text" placeholder="Search inventory..." />
+          <select id="supplierFilter">
+            <option value="">All suppliers</option>
+          </select>
+          <select id="statusFilter">
+            <option value="">All statuses</option>
+            <option value="out">Out of stock</option>
+            <option value="low">Low stock</option>
+            <option value="missingCost">Missing cost</option>
+            <option value="healthy">Healthy</option>
+          </select>
+          <label class="check-inline"><input id="lowStockOnly" type="checkbox" /> Low stock only</label>
+        </div>
+
+        <div class="table-wrap">
+          <table id="inventoryTable" class="inventory-table">
+            <thead>
+              <tr>
+                <th data-sort="item">Item</th>
+                <th data-sort="supplier">Supplier</th>
+                <th data-sort="baseUnit">Base Unit</th>
+                <th data-sort="quantity">Quantity</th>
+                <th data-sort="avgCost">Avg Cost</th>
+                <th data-sort="totalValue">Total Value</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="stockTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="summary">
+          <h3>Total Stock Value: <span id="totalStockValue">$0.00</span></h3>
+        </div>
+      </section>
+    </section>
+
+    <section id="tab-waste" class="tab-panel">
+      <div class="waste-grid">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Waste Stock</h2>
+              <p class="hint">Record expired, broken, spoiled, returned, or discarded stock.</p>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <label for="wasteItem">Item</label>
+              <select id="wasteItem">
+                <option value="">— Select Item —</option>
+              </select>
+            </div>
+            <div>
+              <label for="wasteQty">Quantity</label>
+              <input id="wasteQty" type="number" min="0.01" step="0.01" placeholder="e.g. 500" />
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <label for="wasteUnit">Unit</label>
+              <select id="wasteUnit" disabled>
+                <option value="">— Auto —</option>
+              </select>
+            </div>
+            <div>
+              <label for="wasteReason">Reason</label>
+              <select id="wasteReason">
+                <option value="">— Select Reason —</option>
+                <option value="Expired">Expired</option>
+                <option value="Broken">Broken</option>
+                <option value="Spoiled">Spoiled</option>
+                <option value="Returned">Returned</option>
+                <option value="Discarded">Discarded</option>
+                <option value="Stock Count Correction">Stock Count Correction</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label for="wasteNote">Note</label>
+            <input id="wasteNote" type="text" placeholder="Optional note" />
+          </div>
+
+          <button id="wasteStockBtn" type="button" class="danger-btn full-btn">Remove from Stock</button>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Waste Summary</h2>
+              <p class="hint">Frontend history for quick review.</p>
+            </div>
+          </div>
+          <div class="waste-summary-grid">
+            <div><span>Waste Records</span><strong id="wasteCount">0</strong></div>
+            <div><span>Estimated Waste Value</span><strong id="wasteValue">$0.00</strong></div>
+            <div><span>Top Reason</span><strong id="topWasteReason">—</strong></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="tab-history" class="tab-panel">
+      <div class="history-grid">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Delivery / Restock History</h2>
+              <p class="hint">Latest stock additions saved locally for audit convenience.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="mini-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Item</th>
+                  <th>Supplier</th>
+                  <th>Qty Added</th>
+                  <th>Cost / Unit</th>
+                  <th>Invoice</th>
+                </tr>
+              </thead>
+              <tbody id="restockHistoryBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Waste History</h2>
+              <p class="hint">Latest removed stock records.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="mini-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Item</th>
+                  <th>Reason</th>
+                  <th>Qty Removed</th>
+                  <th>Unit</th>
+                </tr>
+              </thead>
+              <tbody id="wasteHistoryBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="reorderDialog" class="dialog">
+    <div class="dialog-head">
+      <h3 id="reorderTitle">Reorder Item</h3>
+      <button type="button" id="reorderCloseBtn" class="icon-btn" aria-label="Close">×</button>
+    </div>
+    <div class="grid-2">
+      <div>
+        <label>Quantity to Add</label>
+        <input id="reorderQty" type="number" min="0.01" step="0.01" placeholder="Quantity in purchase unit" />
+      </div>
+      <div>
+        <label>Cost per Purchase Unit</label>
+        <input id="reorderCost" type="number" min="0.01" step="0.01" placeholder="Cost" />
+      </div>
+    </div>
+    <p id="reorderHint" class="micro-note"></p>
+    <div class="dialog-foot">
+      <button type="button" id="reorderCancelBtn" class="secondary-btn">Cancel</button>
+      <button type="button" id="reorderConfirmBtn" class="primary-btn">Receive</button>
+    </div>
+  </dialog>
+
+  <dialog id="countDialog" class="dialog">
+    <div class="dialog-head">
+      <h3 id="countTitle">Stock Count</h3>
+      <button type="button" id="countCloseBtn" class="icon-btn" aria-label="Close">×</button>
+    </div>
+    <p id="countCurrent" class="hint"></p>
+    <div class="grid-2">
+      <div>
+        <label>Counted Quantity</label>
+        <input id="countQty" type="number" min="0" step="0.01" />
+      </div>
+      <div>
+        <label>Reason</label>
+        <input id="countReason" type="text" value="Physical count correction" />
+      </div>
+    </div>
+    <p id="countDiff" class="micro-note"></p>
+    <div class="dialog-foot">
+      <button type="button" id="countCancelBtn" class="secondary-btn">Cancel</button>
+      <button type="button" id="countApplyBtn" class="primary-btn">Apply Difference</button>
+    </div>
+  </dialog>
+
+  <dialog id="itemDetailDialog" class="dialog">
+    <div class="dialog-head">
+      <h3 id="detailTitle">Item Details</h3>
+      <button type="button" id="detailCloseBtn" class="icon-btn" aria-label="Close">×</button>
+    </div>
+    <div id="detailBody" class="detail-body"></div>
+    <div class="dialog-foot">
+      <button type="button" id="detailReorderBtn" class="primary-btn">Reorder</button>
+      <button type="button" id="detailOkBtn" class="secondary-btn">Close</button>
+    </div>
+  </dialog>
+
+  <div id="prepModal" class="prep-modal hidden" aria-hidden="true">
+    <div class="prep-modal-content" role="dialog" aria-modal="true" aria-labelledby="prepTitle">
+      <div class="prep-modal-header">
+        <h2 id="prepTitle">Prep / Production</h2>
+        <button type="button" id="prepCloseBtn" class="prep-icon-btn" aria-label="Close">✕</button>
+      </div>
+
+      <div class="prep-tabs">
+        <button type="button" id="prepTabManage" class="prep-tab active">Manage</button>
+        <button type="button" id="prepTabProduce" class="prep-tab">Produce</button>
+      </div>
+
+      <div id="prepPanelManage" class="prep-panel">
+        <div class="prep-grid">
+          <div class="prep-card">
+            <h3 id="prepFormTitle">Create Prep Item</h3>
+            <label>Prep Item Name:</label>
+            <input id="prepName" type="text" placeholder="e.g. Special Sauce" />
+            <label>Category (optional):</label>
+            <input id="prepCategory" type="text" placeholder="e.g. Sauces" />
+            <label>Prep Unit:</label>
+            <select id="prepUnit">
+              <option value="g">g</option>
+              <option value="kg">kg</option>
+              <option value="ml">ml</option>
+              <option value="L">L</option>
+              <option value="pcs">pcs</option>
+            </select>
+            <label>Yield Quantity (per 1 batch):</label>
+            <input id="prepYieldQty" type="number" min="0.01" step="0.01" placeholder="e.g. 1000" />
+            <h4 class="prep-subhead">Recipe (Consumes Stock Items)</h4>
+            <div id="prepRecipeRows"></div>
+            <button type="button" id="prepAddRowBtn" class="prep-secondary">+ Add Ingredient</button>
+            <button type="button" id="prepSaveBtn">Save Prep Item</button>
+            <button type="button" id="prepCancelEditBtn" class="prep-danger hidden">Cancel Edit</button>
+            <p class="prep-micro">Prep remains a frontend workspace and does not change your database schema.</p>
+          </div>
+
+          <div class="prep-card">
+            <div class="prep-row-between">
+              <h3>Prep Inventory</h3>
+              <input id="prepSearch" class="prep-search" type="text" placeholder="Search prep items..." />
+            </div>
+            <div class="table-wrap">
+              <table class="prep-table">
+                <thead>
+                  <tr>
+                    <th>Prep Item</th>
+                    <th>Category</th>
+                    <th>Qty</th>
+                    <th>Unit</th>
+                    <th>Unit Cost</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="prepTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="prepPanelProduce" class="prep-panel hidden">
+        <div class="prep-card">
+          <h3>Produce Prep Batch</h3>
+          <label>Select Prep Item:</label>
+          <select id="prepProduceSelect"></select>
+          <label>Quantity to Produce (in Prep Unit):</label>
+          <input id="prepProduceQty" type="number" min="0.01" step="0.01" placeholder="e.g. 500" />
+          <div class="prep-actions-row">
+            <button type="button" id="prepPreviewBtn" class="prep-secondary">Preview Ingredients</button>
+            <button type="button" id="prepProduceBtn">Produce</button>
+          </div>
+          <div id="prepPreviewBox" class="prep-preview"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="stock.js"></script>
+</body>
+
+</html>
