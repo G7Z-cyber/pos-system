@@ -11,6 +11,13 @@
 // ---------- Utilities ----------
 function safeParse(str, fallback) { try { return JSON.parse(str || ""); } catch { return fallback; } }
 function norm(s) { return String(s || "").trim().toLowerCase(); }
+function getLiveStockItems() {
+  try {
+    return JSON.parse(localStorage.getItem("stockItems") || "[]");
+  } catch {
+    return [];
+  }
+}
 function normUnit(u) { return String(u || "").trim().toLowerCase(); }
 function nowId() { return `L-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`.toUpperCase(); }
 function escapeHtml(s) {
@@ -1387,7 +1394,7 @@ async function refreshStockItemsFromSupabase() {
 
   const { data: items, error: itemsError } = await window.sb
     .from("inventory_items")
-    .select("id, name, unit, is_active")
+    .select("id, name, base_unit, purchase_unit, conversion_to_base, is_active")
     .eq("is_active", true)
     .order("name", { ascending: true });
 
@@ -1408,13 +1415,16 @@ async function refreshStockItemsFromSupabase() {
       inventory_item_id: Number(item.id),
       item_id: Number(item.id),
       name: item.name,
-      unit: item.unit || "pcs",
+      unit: item.base_unit || "pcs",
+      purchase_unit: item.purchase_unit || item.base_unit || "pcs",
+      conversion_to_base: Number(item.conversion_to_base || 1),
       quantity: Number(row.quantity || 0),
       avg_cost: Number(row.avg_cost || 0),
       updated_at: row.updated_at || null
     };
   });
 
+  localStorage.removeItem("stockItems");
   localStorage.setItem("stockItems", JSON.stringify(mapped));
   stockItems = mapped;
 }
